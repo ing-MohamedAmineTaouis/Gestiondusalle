@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Reservation Room</title>
+    <link rel="stylesheet" type="text/css" href="webjars/bootstrap/5.2.0/css/bootstrap.min.css">
+</head>
+<body>
+<h1 class="text-center">Réservation du salle <span th:text="${roomJsp.nomRoom}"></span></h1>
+<ul class="d-none" id="reservation-jour" th:each="reservation : ${reservations}">
+    <ul>
+        <li class="list-heure" th:value="${reservation.heureReservation}" th:text="${reservation.heureReservation}"></li>
+        <li class="list-date" th:value="${reservation.dateReservation}" th:text="${reservation.dateReservation}"></li>
+    </ul>
+</ul>
+<div class="container">
+    <div class="row d-flex justify-content-center">
+        <div class="col-3">
+            <form id="myForm" th:if="${!noBookingRoom}" action="saveReservation" method="post">
+                <div class="form-group mb-4">
+                    <input type="hidden" name="roomId" id="roomId" th:value="${roomJsp.idRoom}">
+                </div>
+                <div class="form-group mb-4">
+                    <label for="capacity">Capacity</label>
+                    <input type="number" class="form-control" id="capacity" name="capacity" min="1" th:max="${roomJsp.capacity}*0.7" required>
+                </div>
+                <div class="form-group mb-4">
+                    <label for="typeMeet">Meeting type</label>
+                    <select class="form-control" id="typeMeet" name="typeMeet" required>
+                        <option value="Default">Choisissez une option</option>
+                        <option th:if="${hasVcEquipment}" value="vc">VC</option>
+                        <option th:if="${hasSpecEquipment}" value="spec">SPEC</option>
+                        <option value="rs">RS</option>
+                        <option th:if="${hasRcEquipment}" value="rc">RC</option>
+                    </select>
+                </div>
+                <div class="form-group mb-4">
+                    <label for="jour">Jour</label>
+                    <input type="date" class="form-control" id="jour" name="jour" disabled required>
+                </div>
+                <div class="form-group mb-4">
+                    <label for="heure">Heure</label>
+                    <select class="form-control" id="heure" name="heure" required disabled>
+                        <option value="Default">Choisissez une option</option>
+                        <option value="08:00-09:00" class="heure-option">08:00-09:00</option>
+                        <option value="09:00-10:00" class="heure-option">09:00-10:00</option>
+                        <option value="10:00-11:00" class="heure-option">10:00-11:00</option>
+                        <option value="11:00-12:00" class="heure-option">11:00-12:00</option>
+                        <option value="12:00-13:00" class="heure-option">12:00-13:00</option>
+                        <option value="13:00-14:00" class="heure-option">13:00-14:00</option>
+                        <option value="14:00-15:00" class="heure-option">14:00-15:00</option>
+                        <option value="15:00-16:00" class="heure-option">15:00-16:00</option>
+                        <option value="16:00-17:00" class="heure-option">16:00-17:00</option>
+                        <option value="17:00-18:00" class="heure-option">17:00-18:00</option>
+                        <option value="18:00-19:00" class="heure-option">18:00-19:00</option>
+                        <option value="19:00-20:00" class="heure-option">19:00-20:00</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-success btn-block">Réservez</button>
+            </form>
+            <div th:if="${noBookingRoom}">
+                <div class="alert alert-danger" role="alert">
+                    This room can't be booked were sorry!
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let meetInput = document.getElementById("typeMeet");
+    let jourInput = document.getElementById("jour");
+    let heureInput = document.getElementById("heure");
+    const reservationMap = new Map();
+    const listHeureElements = document.querySelectorAll('.list-heure');
+    const listDateElements = document.querySelectorAll('.list-date');
+    listHeureElements.forEach((heureElement, index) => {
+        const heure = heureElement.textContent;
+        const date = listDateElements[index].textContent;
+
+        if (!reservationMap.has(date)) {
+            reservationMap.set(date, []);
+        }
+        reservationMap.get(date).push(heure);
+    });
+
+    console.log(reservationMap);
+    function isPastDate(date) {
+        let currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+        return new Date(date) < currentDate;
+    }
+
+    function isWeekend(date) {
+        let day = new Date(date).getUTCDay();
+        return day === 0 || day === 6;
+    }
+
+    function toggleJour(){
+        if (meetInput.value !== "Default") {
+            jourInput.disabled = false;
+        } else {
+            jourInput.disabled = true;
+        }
+    }
+
+    function toggleHeure(){
+        if (jourInput && jourInput !== "") {
+            heureInput.disabled = false;
+        } else {
+            heureInput.disabled = true;
+        }
+    }
+
+    function restrictDateInput() {
+        let dateValue = jourInput.value;
+        toggleHeure();
+        if (dateValue) {
+            if (isWeekend(dateValue)) {
+                heureInput.disabled = true;
+                alert('Les week-ends ne sont pas autorisés. Veuillez choisir un jour de la semaine.');
+                jourInput.value = '';
+            } else if (isPastDate(dateValue)) {
+                heureInput.disabled = true;
+                alert("Impossible de réserver une salle à une date passée.");
+                jourInput.value = '';
+            }
+        }
+    }
+
+    document.getElementById("myForm").addEventListener("submit", function(event) {
+        if (heureInput.value === "Default") {
+            event.preventDefault(); // Prevent form submission
+            alert("Veuillez choisir une option valide pour l'heure."); // Display alert message
+        }
+    });
+
+    function disableOptionsForSelectedDate() {
+        const jourInput = document.getElementById('jour');
+        const heureSelect = document.getElementById('heure');
+        const selectedDate = jourInput.value;
+
+        // Array of all time slots
+        const timeSlots = [
+            "08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00",
+            "12:00-13:00", "13:00-14:00", "14:00-15:00", "15:00-16:00",
+            "16:00-17:00", "17:00-18:00", "18:00-19:00", "19:00-20:00"
+        ];
+
+        const reservationsForSelectedDate = reservationMap.get(selectedDate) || [];
+
+        heureSelect.querySelectorAll('option').forEach(option => {
+            option.disabled = false;
+        });
+
+        heureSelect.querySelectorAll('option').forEach(option => {
+            if (reservationsForSelectedDate.includes(option.value)) {
+                option.disabled = true;
+
+                const index = timeSlots.indexOf(option.value);
+
+                if (index > 0) {
+                    const previousOption = heureSelect.querySelector(`option[value="${timeSlots[index - 1]}"]`);
+                    if (previousOption) {
+                        previousOption.disabled = true;
+                    }
+                }
+
+                if (index < timeSlots.length - 1) {
+                    const nextOption = heureSelect.querySelector(`option[value="${timeSlots[index + 1]}"]`);
+                    if (nextOption) {
+                        nextOption.disabled = true;
+                    }
+                }
+            }
+        });
+    }
+
+    document.getElementById('jour').addEventListener('change', disableOptionsForSelectedDate);
+
+    disableOptionsForSelectedDate();
+
+
+    meetInput.addEventListener('change', toggleJour);
+    jourInput.addEventListener('change', restrictDateInput);
+</script>
+</body>
+</html>
